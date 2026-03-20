@@ -5,6 +5,8 @@ trigger:
 
 pool:
   name: 'FinalProject'
+  depends:
+    Agent.name -equals devops-agent-vm
 
 jobs:
 - job: Build_APK
