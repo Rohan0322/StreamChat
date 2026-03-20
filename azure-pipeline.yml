@@ -1,12 +1,9 @@
-trigger:
-  branches:
-    include:
-      - master
+trigger: none
 
 pool:
   name: 'FinalProject'
   depends:
-    Agent.name -equals devops-agent-vm
+    Agent.name -equals agent2
 
 jobs:
 - job: Build_APK
