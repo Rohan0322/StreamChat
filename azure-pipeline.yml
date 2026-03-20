@@ -28,7 +28,7 @@ stages:
       clean: true
 
     # =========================
-    # VERIFY ENV (DEBUG ONCE)
+    # VERIFY ENV
     # =========================
     - script: |
         echo "Node:"
@@ -37,27 +37,17 @@ stages:
         yarn -v
         echo "Java:"
         java -version
-        echo "Android SDK:"
-        echo $ANDROID_HOME
       displayName: Verify Environment
 
     # =========================
-    # FIX GRADLE PERMISSIONS
-    # =========================
-    - script: |
-        mkdir -p /opt/gradle-cache
-        chmod -R 777 /opt/gradle-cache
-      displayName: Fix Gradle Cache Permission
-
-    # =========================
-    # INSTALL DEPENDENCIES (FAST)
+    # INSTALL DEPENDENCIES
     # =========================
     - script: |
         yarn install --frozen-lockfile --prefer-offline
       displayName: Install Dependencies
 
     # =========================
-    # FIX REACT NATIVE PLUGIN PATH (IMPORTANT)
+    # FIX RN GRADLE PLUGIN PATH
     # =========================
     - script: |
         PLUGIN_SRC="$(pwd)/node_modules/@react-native/gradle-plugin"
@@ -81,6 +71,8 @@ stages:
     # BUILD APK
     # =========================
     - script: |
+        export GRADLE_USER_HOME=/tmp/gradle-cache
+
         cd examples/SampleApp/android
         chmod +x gradlew
 
@@ -97,7 +89,7 @@ stages:
     - task: CopyFiles@2
       inputs:
         SourceFolder: 'examples/SampleApp/android/app/build/outputs/apk'
-        Contents: '**/*.apk'
+        Contents: '*/.apk'
         TargetFolder: '$(Build.ArtifactStagingDirectory)'
 
     # =========================
