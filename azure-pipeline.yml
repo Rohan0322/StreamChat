@@ -1,101 +1,48 @@
-trigger: none
+trigger:
+  branches:
+    include:
+      - master
 
 pool:
-  name: 'FinalProject'
+  vmImage: 'ubuntu-latest'
 
-resources:
-  containers:
-  - container: buildagent
+jobs:
+- job: Build_APK
+
+  container:
     image: project.azurecr.io/rn-build-agent:3.0
     endpoint: ACR
 
-stages:
-- stage: Build
-  displayName: Build APK
-
-  jobs:
-  - job: BuildAPK
-    displayName: Android Build
-    container: buildagent
-    timeoutInMinutes: 60
-
-    steps:
-
-    # =========================
-    # CHECKOUT
-    # =========================
+  steps:
     - checkout: self
       clean: true
 
-    # =========================
-    # VERIFY ENV
-    # =========================
     - script: |
-        echo "Node:"
-        node -v
-        echo "Yarn:"
-        yarn -v
-        echo "Java:"
-        java -version
-      displayName: Verify Environment
-
-    # =========================
-    # INSTALL DEPENDENCIES
-    # =========================
-    - script: |
-        yarn install --frozen-lockfile --prefer-offline
+        cd examples/SampleApp
+        yarn install --frozen-lockfile
       displayName: Install Dependencies
 
-    # =========================
-    # FIX RN GRADLE PLUGIN PATH
-    # =========================
     - script: |
-        PLUGIN_SRC="$(pwd)/node_modules/@react-native/gradle-plugin"
-        PLUGIN_DST="examples/SampleApp/node_modules/@react-native/gradle-plugin"
-
-        mkdir -p examples/SampleApp/node_modules/@react-native
-
-        if [ ! -d "$PLUGIN_DST" ]; then
-          cp -r "$PLUGIN_SRC" "$PLUGIN_DST"
-        fi
-      displayName: Fix RN Gradle Plugin Path
-
-    # =========================
-    # CREATE local.properties
-    # =========================
-    - script: |
-        echo "sdk.dir=$ANDROID_HOME" > examples/SampleApp/android/local.properties
-      displayName: Create local.properties
-
-    # =========================
-    # BUILD APK
-    # =========================
-    - script: |
-        export GRADLE_USER_HOME=/tmp/gradle-cache
-
         cd examples/SampleApp/android
-        chmod +x gradlew
+        ./gradlew clean
+      displayName: Clean Build
 
-        ./gradlew assembleRelease \
-          --parallel \
-          --build-cache \
-          -x lint \
-          -x test
+    - script: |
+        cd examples/SampleApp/android
+        echo "sdk.dir=$ANDROID_HOME" > local.properties
+      displayName: Setup SDK
+
+    - script: |
+        cd examples/SampleApp/android
+        ./gradlew assembleRelease --no-daemon
       displayName: Build APK
 
-    # =========================
-    # COPY APK
-    # =========================
     - task: CopyFiles@2
       inputs:
-        SourceFolder: 'examples/SampleApp/android/app/build/outputs/apk'
-        Contents: '*/.apk'
-        TargetFolder: '$(Build.ArtifactStagingDirectory)'
+        contents: '**/*.apk'
+        targetFolder: '$(Build.ArtifactStagingDirectory)'
 
-    # =========================
-    # PUBLISH APK
-    # =========================
     - task: PublishBuildArtifacts@1
       inputs:
-        PathtoPublish: '$(Build.ArtifactStagingDirectory)'
-        ArtifactName: 'android-apk'
+        pathToPublish: '$(Build.ArtifactStagingDirectory)'
+        artifactName: 'APK'
