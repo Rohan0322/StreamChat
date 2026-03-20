@@ -1,5 +1,6 @@
 const { getDefaultConfig } = require('@react-native/metro-config');
-const { exclusionList, resolveUniqueModule } = require('@rnx-kit/metro-config');
+module.exporta = getDefaultConfig(__dirname);
+//const { exclusionList, resolveUniqueModule } = require('@rnx-kit/metro-config');
 
 /**
  * Metro configuration
@@ -7,11 +8,11 @@ const { exclusionList, resolveUniqueModule } = require('@rnx-kit/metro-config');
  *
  * @type {import('@react-native/metro-config').MetroConfig}
  */
-const config = getDefaultConfig(__dirname);
+//const config = getDefaultConfig(__dirname);
 
-const PATH = require('path');
-const packageDirPath = PATH.resolve(__dirname, '../../package');
-const nativePackageDirPath = PATH.resolve(__dirname, '../../package/native-package');
+//const PATH = require('path');
+//const packageDirPath = PATH.resolve(__dirname, '../../package');
+/*const nativePackageDirPath = PATH.resolve(__dirname, '../../package/native-package');
 
 const symlinked = {
   'stream-chat-react-native': nativePackageDirPath,
@@ -66,4 +67,4 @@ config.resolver.nodeModulesPaths = [PATH.resolve(__dirname, 'node_modules')];
 // add the package dir for metro to access the package folder
 config.watchFolders = [packageDirPath];
 
-module.exports = config;
+module.exports = config;*/
