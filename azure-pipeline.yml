@@ -1,0 +1,109 @@
+trigger: none
+
+pool:
+  name: 'FinalProject'
+
+resources:
+  containers:
+  - container: buildagent
+    image: project.azurecr.io/rn-build-agent:3.0
+    endpoint: ACR
+
+stages:
+- stage: Build
+  displayName: Build APK
+
+  jobs:
+  - job: BuildAPK
+    displayName: Android Build
+    container: buildagent
+    timeoutInMinutes: 60
+
+    steps:
+
+    # =========================
+    # CHECKOUT
+    # =========================
+    - checkout: self
+      clean: true
+
+    # =========================
+    # VERIFY ENV (DEBUG ONCE)
+    # =========================
+    - script: |
+        echo "Node:"
+        node -v
+        echo "Yarn:"
+        yarn -v
+        echo "Java:"
+        java -version
+        echo "Android SDK:"
+        echo $ANDROID_HOME
+      displayName: Verify Environment
+
+    # =========================
+    # FIX GRADLE PERMISSIONS
+    # =========================
+    - script: |
+        mkdir -p /opt/gradle-cache
+        chmod -R 777 /opt/gradle-cache
+      displayName: Fix Gradle Cache Permission
+
+    # =========================
+    # INSTALL DEPENDENCIES (FAST)
+    # =========================
+    - script: |
+        yarn install --frozen-lockfile --prefer-offline
+      displayName: Install Dependencies
+
+    # =========================
+    # FIX REACT NATIVE PLUGIN PATH (IMPORTANT)
+    # =========================
+    - script: |
+        PLUGIN_SRC="$(pwd)/node_modules/@react-native/gradle-plugin"
+        PLUGIN_DST="examples/SampleApp/node_modules/@react-native/gradle-plugin"
+
+        mkdir -p examples/SampleApp/node_modules/@react-native
+
+        if [ ! -d "$PLUGIN_DST" ]; then
+          cp -r "$PLUGIN_SRC" "$PLUGIN_DST"
+        fi
+      displayName: Fix RN Gradle Plugin Path
+
+    # =========================
+    # CREATE local.properties
+    # =========================
+    - script: |
+        echo "sdk.dir=$ANDROID_HOME" > examples/SampleApp/android/local.properties
+      displayName: Create local.properties
+
+    # =========================
+    # BUILD APK
+    # =========================
+    - script: |
+        cd examples/SampleApp/android
+        chmod +x gradlew
+
+        ./gradlew assembleRelease \
+          --parallel \
+          --build-cache \
+          -x lint \
+          -x test
+      displayName: Build APK
+
+    # =========================
+    # COPY APK
+    # =========================
+    - task: CopyFiles@2
+      inputs:
+        SourceFolder: 'examples/SampleApp/android/app/build/outputs/apk'
+        Contents: '**/*.apk'
+        TargetFolder: '$(Build.ArtifactStagingDirectory)'
+
+    # =========================
+    # PUBLISH APK
+    # =========================
+    - task: PublishBuildArtifacts@1
+      inputs:
+        PathtoPublish: '$(Build.ArtifactStagingDirectory)'
+        ArtifactName: 'android-apk'
