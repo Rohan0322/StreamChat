@@ -17,8 +17,9 @@ jobs:
       clean: true
 
     - script: |
-        cd examples/SampleApp
         yarn install --frozen-lockfile
+        cd examples/SampleApp
+        yarn install --frozen-lockfile --ignore-workspace-root-check
       displayName: Install Dependencies
 
     - script: |
