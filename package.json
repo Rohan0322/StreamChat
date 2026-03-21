@@ -8,7 +8,6 @@
     "package/*",
     "examples/*"
   ],
-
   "repository": {
     "type": "git",
     "url": "https://github.com/GetStream/stream-chat-react-native.git"
@@ -47,5 +46,8 @@
     "test:unit": "yarn lerna-workspaces run test:unit",
     "minify-bundle": "uglifyjs package/lib/module/**/*.js -o package/lib/module/bundle.min.js -c -m"
   },
-  "packageManager": "yarn@1.22.22"
+  "packageManager": "yarn@1.22.22",
+  "dependencies": {
+    "@babel/runtime": "^7.29.2"
+  }
 }

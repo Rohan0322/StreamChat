@@ -1,5 +1,15 @@
-const { getDefaultConfig } = require('@react-native/metro-config');
-module.exporta = getDefaultConfig(__dirname);
+const path = require('path');
+module.exporta = {
+	resolver: {
+		nodeModulesPaths: [
+			path.resolve(__dirname, 'node_modules'),
+			path.resolve(__dirname, '../../node_modules'),
+		],
+	},
+	watchFolders: [
+		path.resolve(__dirname, '../../'),
+	],
+};
 //const { exclusionList, resolveUniqueModule } = require('@rnx-kit/metro-config');
 
 /**
