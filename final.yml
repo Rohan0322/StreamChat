@@ -1,0 +1,47 @@
+trigger: none
+
+pool:
+  name: 'FinalProject'
+  depends:
+    Agent.name -equals agent2
+
+jobs:
+- job: Build_APK
+
+  container:
+    image: project.azurecr.io/rn-build-agent:3.0
+    endpoint: ACR
+
+  steps:
+    - checkout: self
+      clean: true
+
+    - script: |
+        cd examples/SampleApp
+        yarn install --frozen-lockfile
+      displayName: Install Dependencies
+
+    - script: |
+        cd examples/SampleApp/android
+        ./gradlew clean
+      displayName: Clean Build
+
+   # - script: |
+     #   cd examples/SampleApp/android
+      #  echo "sdk.dir=$ANDROID_HOME" > local.properties
+      #displayName: Setup SDK
+
+    - script: |
+        cd examples/SampleApp/android
+        ./gradlew assembleRelease --no-daemon
+      displayName: Build APK
+
+    - task: CopyFiles@2
+      inputs:
+        contents: '*/.apk'
+        targetFolder: '$(Build.ArtifactStagingDirectory)'
+
+    - task: PublishBuildArtifacts@1
+      inputs:
+        pathToPublish: '$(Build.ArtifactStagingDirectory)'
+        artifactName: 'APK'
