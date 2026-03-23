@@ -1,47 +1,69 @@
 trigger: none
-
 pool:
   name: 'FinalProject'
-  depends:
-    Agent.name -equals agent2
-
+  demands:
+    - Agent.Name -equals agent2
 jobs:
 - job: Build_APK
-
+  displayName: Build SampleApp APK
   container:
     image: project.azurecr.io/rn-build-agent:4.0
     endpoint: ACR
-
   steps:
-    - checkout: self
-      clean: true
-
-    - script: |
-        cd examples/SampleApp
-        yarn install --frozen-lockfile
-      displayName: Install Dependencies
-
-    - script: |
-        cd examples/SampleApp/android
-        ./gradlew clean
-      displayName: Clean Build
-
-   # - script: |
-     #   cd examples/SampleApp/android
-      #  echo "sdk.dir=$ANDROID_HOME" > local.properties
-      #displayName: Setup SDK
-
-    - script: |
-        cd examples/SampleApp/android
-        ./gradlew assembleRelease --no-daemon
-      displayName: Build APK
-
-    - task: CopyFiles@2
-      inputs:
-        contents: '*/.apk'
-        targetFolder: '$(Build.ArtifactStagingDirectory)'
-
-    - task: PublishBuildArtifacts@1
-      inputs:
-        pathToPublish: '$(Build.ArtifactStagingDirectory)'
-        artifactName: 'APK'
+  - checkout: self
+    clean: true
+ 
+  # Install dependencies
+  - script: |
+      cd examples/SampleApp
+      yarn install --frozen-lockfile
+    displayName: Install Dependencies
+ 
+  # Install Android SDK + NDK in writable location
+  - script: |
+      mkdir -p $HOME/android-sdk
+      export ANDROID_HOME=$HOME/android-sdk
+      export ANDROID_SDK_ROOT=$HOME/android-sdk
+      export PATH=$PATH:$ANDROID_HOME/cmdline-tools/latest/bin:$ANDROID_HOME/platform-tools
+      yes | sdkmanager --licenses
+      sdkmanager \
+        "platform-tools" \
+        "platforms;android-36" \
+        "build-tools;36.0.0" \
+        "ndk;27.1.12297006" \
+        "cmake;3.22.1"
+    displayName: Install Android SDK & NDK
+ 
+  # Clean build
+  - script: |
+      export ANDROID_HOME=$HOME/android-sdk
+      export ANDROID_SDK_ROOT=$HOME/android-sdk
+      export PATH=$PATH:$ANDROID_HOME/platform-tools
+      cd examples/SampleApp/android
+      chmod +x gradlew
+      ./gradlew clean
+    displayName: Clean Build
+ 
+  # Build APK
+  - script: |
+      export ANDROID_HOME=$HOME/android-sdk
+      export ANDROID_SDK_ROOT=$HOME/android-sdk
+      export PATH=$PATH:$ANDROID_HOME/platform-tools
+      cd examples/SampleApp/android
+      ./gradlew assembleRelease --no-daemon
+    displayName: Build APK
+ 
+  # Copy APK to artifact staging
+  - task: CopyFiles@2
+    displayName: Copy APK
+    inputs:
+      contents: 'examples/SampleApp/android/app/build/outputs/**/*.apk'
+      targetFolder: '$(Build.ArtifactStagingDirectory)'
+ 
+  # Publish artifact
+  - task: PublishBuildArtifacts@1
+    displayName: Publish APK
+    inputs:
+      pathToPublish: '$(Build.ArtifactStagingDirectory)'
+      artifactName: 'SampleApp-APK'
+ 
