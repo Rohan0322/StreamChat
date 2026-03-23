@@ -155,3 +155,8 @@ if (isNewArchitectureEnabled()) {
     codegenJavaPackageName = "com.streamchatreactnative"
   }
 }
+
+// Disable syncSharedShimmerSources to avoid missing shared sources error
+afterEvaluate {
+    tasks.findByName("syncSharedShimmerSources")?.enabled = false
+}

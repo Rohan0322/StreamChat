@@ -47,6 +47,7 @@ public class StreamChatReactNativePackage extends TurboReactPackage {
 
   @Override
   public List<ViewManager> createViewManagers(ReactApplicationContext reactContext) {
-    return Collections.<ViewManager>singletonList(new StreamShimmerViewManager());
+   //return Collections.<ViewManager>singletonList(new StreamShimmerViewManager());
+   return Collections.emptyList(); // Disabled shimmer view manager
   }
 }
