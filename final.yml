@@ -9,7 +9,7 @@ jobs:
 - job: Build_APK
 
   container:
-    image: project.azurecr.io/rn-build-agent:3.0
+    image: project.azurecr.io/rn-build-agent:4.0
     endpoint: ACR
 
   steps:
