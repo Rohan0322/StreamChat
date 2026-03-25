@@ -94,7 +94,8 @@
     "prettier": "^3.5.3",
     "react-test-renderer": "19.1.0",
     "typescript": "5.8.3",
-    "typescript-eslint": "^8.34.0"
+    "typescript-eslint": "^8.34.0",
+    "@stream-io/flat-list-mvcp": "^0.10.3"
   },
   "engines": {
     "node": ">=22"
