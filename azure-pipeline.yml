@@ -2,8 +2,6 @@ trigger: none
 
 pool:
   name: 'FinalProject'
-  depends:
-    Agent.name -equals agent2
 
 jobs:
 - job: Build_APK
