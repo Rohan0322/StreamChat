@@ -17,9 +17,13 @@ jobs:
       clean: true
 
     - script: |
-        cd examples/SampleApp
         yarn install --frozen-lockfile
-      displayName: Install Dependencies
+      displayName: Install Dependencies (Root)
+
+    - script: |
+        cd examples/SampleApp
+        yarn sync-native
+      displayName: Sync Native Modules
 
     - script: |
         cd examples/SampleApp/android
