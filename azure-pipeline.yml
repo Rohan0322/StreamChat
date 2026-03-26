@@ -3,47 +3,74 @@ trigger: none
 pool:
   name: 'FinalProject'
 
-jobs:
-- job: Build_APK
+variables:
+  NODE_VERSION: '22.x'
 
-  container:
-    image: project.azurecr.io/rn-build-agent:3.0
-    endpoint: ACR
+steps:
 
-  steps:
-    - checkout: self
-      clean: true
+# -------------------------------
+# 1. Use Node
+# -------------------------------
+- task: NodeTool@0
+  inputs:
+    versionSpec: '$(NODE_VERSION)'
+  displayName: 'Install Node.js'
 
-    - script: |
-        yarn install --frozen-lockfile
-      displayName: Install Dependencies (Root)
+# -------------------------------
+# 2. Install Yarn
+# -------------------------------
+- script: |
+    npm install -g yarn
+    yarn --version
+  displayName: 'Install Yarn'
 
-    - script: |
-        cd examples/SampleApp
-        yarn sync-native
-      displayName: Sync Native Modules
+# -------------------------------
+# 3. Clean workspace (IMPORTANT)
+# -------------------------------
+- script: |
+    rm -rf node_modules
+    rm -rf examples/SampleApp/node_modules
+  displayName: 'Clean old node_modules'
 
-    - script: |
-        cd examples/SampleApp/android
-        ./gradlew clean
-      displayName: Clean Build
+# -------------------------------
+# 4. Install dependencies (ROOT + APP)
+# -------------------------------
+- script: |
+    yarn install --frozen-lockfile
+    cd examples/SampleApp
+    yarn install --frozen-lockfile
+  displayName: 'Install dependencies'
 
-    - script: |
-        cd examples/SampleApp/android
-        echo "sdk.dir=$ANDROID_HOME" > local.properties
-      displayName: Setup SDK
+# -------------------------------
+# 5. DEBUG (CRITICAL STEP)
+# -------------------------------
+- script: |
+    echo "===== DEBUG START ====="
+    pwd
 
-    - script: |
-        cd examples/SampleApp/android
-        ./gradlew assembleRelease --no-daemon
-      displayName: Build APK
+    echo "---- ROOT ----"
+    ls -la
 
-    - task: CopyFiles@2
-      inputs:
-        contents: '**/*.apk'
-        targetFolder: '$(Build.ArtifactStagingDirectory)'
+    echo "---- SAMPLE APP ----"
+    ls -la examples/SampleApp
 
-    - task: PublishBuildArtifacts@1
-      inputs:
-        pathToPublish: '$(Build.ArtifactStagingDirectory)'
-        artifactName: 'APK'
+    echo "---- SAMPLE NODE_MODULES (TOP) ----"
+    ls -la examples/SampleApp/node_modules | head -20 || true
+
+    echo "---- CHECK @babel/runtime ----"
+    ls -la examples/SampleApp/node_modules/@babel || true
+
+    echo "---- CHECK @react-native ----"
+    ls -la examples/SampleApp/node_modules/@react-native || true
+
+    echo "===== DEBUG END ====="
+  displayName: 'Debug node_modules'
+
+# -------------------------------
+# 6. Build APK
+# -------------------------------
+- script: |
+    cd examples/SampleApp/android
+    ./gradlew clean
+    ./gradlew assembleRelease --no-daemon
+  displayName: 'Build APK'
