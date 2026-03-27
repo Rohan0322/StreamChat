@@ -1,12 +1,10 @@
 trigger: none
-
-
+#
 # ======================================================
 # VARIABLES
 # ======================================================
 variables:
-  - name: ANDROID_SDK_PATH
-    value: '/home/azureuser/android-sdk'
+  ANDROID_SDK_PATH: '/home/azureuser/android-sdk'
 
 # ======================================================
 # STAGE: Build SampleApp APK ONLY
@@ -25,12 +23,6 @@ stages:
       name: 'FinalProject'
 
     steps:
-
-    - script: |
-        yarn remove @react-native/metro-config || true
-        yarn add @react-native/metro-config@latest
-        workingDirectory: '$(Build.SourcesDirectory)'
-        displayName: Fix metro-config version
 
     # ======================================================
     # Install Android SDK
@@ -78,29 +70,22 @@ stages:
       displayName: Install Yarn
 
     # ======================================================
-    # Install Dependencies (ROOT)
+    # 🔥 CLEAN INSTALL (FIXES metro + lock issues)
     # ======================================================
     - script: |
-        rm -rf node_modules package-lock.json
+        echo "=== Cleaning root dependencies ==="
+        rm -rf node_modules yarn.lock package-lock.json
+        yarn cache clean
         yarn install --ignore-engines --network-timeout 300000
       workingDirectory: '$(Build.SourcesDirectory)'
-      displayName: Install root dependencies
-
-    # ======================================================
-    # 🔥 BABEL FIX (IMPORTANT)
-    # ======================================================
-    - script: |
-        echo "=== Fixing Babel Runtime Issue ==="
-        yarn add @babel/runtime
-        yarn add --dev @babel/plugin-transform-runtime
-      workingDirectory: '$(Build.SourcesDirectory)'
-      displayName: Install Babel runtime
+      displayName: Clean install root dependencies
 
     # ======================================================
     # Install SampleApp Dependencies
     # ======================================================
     - script: |
-        rm -rf node_modules yarn.lock
+        echo "=== Installing SampleApp dependencies ==="
+        rm -rf node_modules
         yarn install --ignore-engines --network-timeout 300000
       workingDirectory: '$(Build.SourcesDirectory)/examples/SampleApp'
       displayName: Install SampleApp dependencies
