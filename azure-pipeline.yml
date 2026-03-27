@@ -26,6 +26,12 @@ stages:
 
     steps:
 
+    - script: |
+        yarn remove @react-native/metro-config || true
+        yarn add @react-native/metro-config@latest
+        workingDirectory: '$(Build.SourcesDirectory)'
+        displayName: Fix metro-config version
+
     # ======================================================
     # Install Android SDK
     # ======================================================
