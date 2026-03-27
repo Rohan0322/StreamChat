@@ -1,11 +1,10 @@
-triggers: none
+trigger: none
 
 
 # ======================================================
 # VARIABLES
 # ======================================================
 variables:
-  - group: React-Native
   - name: ANDROID_SDK_PATH
     value: '/home/azureuser/android-sdk'
 
