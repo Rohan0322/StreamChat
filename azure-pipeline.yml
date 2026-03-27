@@ -1,76 +1,171 @@
-trigger: none
+triggers: none
 
-pool:
-  name: 'FinalProject'
 
+# ======================================================
+# VARIABLES
+# ======================================================
 variables:
-  NODE_VERSION: '22.x'
+  - group: React-Native
+  - name: ANDROID_SDK_PATH
+    value: '/home/azureuser/android-sdk'
 
-steps:
+# ======================================================
+# STAGE: Build SampleApp APK ONLY
+# ======================================================
+stages:
 
-# -------------------------------
-# 1. Use Node
-# -------------------------------
-- task: NodeTool@0
-  inputs:
-    versionSpec: '$(NODE_VERSION)'
-  displayName: 'Install Node.js'
+- stage: BuildSampleAppAPK
+  displayName: Build SampleApp APK
 
-# -------------------------------
-# 2. Install Yarn
-# -------------------------------
-- script: |
-    npm install -g yarn
-    yarn --version
-  displayName: 'Install Yarn'
+  jobs:
 
-# -------------------------------
-# 3. Clean workspace (IMPORTANT)
-# -------------------------------
-- script: |
-    rm -rf node_modules
-    rm -rf examples/SampleApp/node_modules
-  displayName: 'Clean old node_modules'
+  - job: BuildSampleApp
+    displayName: Build SampleApp
+    timeoutInMinutes: 120
+    pool:
+      name: 'FinalProject'
 
-# -------------------------------
-# 4. Install dependencies (ROOT + APP)
-# -------------------------------
-- script: |
-    yarn install --frozen-lockfile
-    cd examples/SampleApp
-    yarn install --frozen-lockfile
-  displayName: 'Install dependencies'
+    steps:
 
-# -------------------------------
-# 5. DEBUG (CRITICAL STEP)
-# -------------------------------
-- script: |
-    echo "===== DEBUG START ====="
-    pwd
+    # ======================================================
+    # Install Android SDK
+    # ======================================================
+    - script: |
+        if [ ! -d "$ANDROID_SDK_PATH/cmdline-tools/latest" ]; then
+          echo "=== Installing Android SDK ==="
+          mkdir -p $ANDROID_SDK_PATH/cmdline-tools
+          cd $ANDROID_SDK_PATH/cmdline-tools
+          wget -q https://dl.google.com/android/repository/commandlinetools-linux-11076708_latest.zip -O cmdline-tools.zip
+          unzip -q cmdline-tools.zip
+          mv cmdline-tools latest
+          rm cmdline-tools.zip
 
-    echo "---- ROOT ----"
-    ls -la
+          $ANDROID_SDK_PATH/cmdline-tools/latest/bin/sdkmanager \
+            "platform-tools" \
+            "platforms;android-34" \
+            "build-tools;34.0.0"
+        fi
 
-    echo "---- SAMPLE APP ----"
-    ls -la examples/SampleApp
+        yes | $ANDROID_SDK_PATH/cmdline-tools/latest/bin/sdkmanager --licenses
+        $ANDROID_SDK_PATH/cmdline-tools/latest/bin/sdkmanager "ndk;27.1.12297006"
 
-    echo "---- SAMPLE NODE_MODULES (TOP) ----"
-    ls -la examples/SampleApp/node_modules | head -20 || true
+        echo "##vso[task.setvariable variable=ANDROID_HOME]$ANDROID_SDK_PATH"
+        echo "##vso[task.setvariable variable=ANDROID_SDK_ROOT]$ANDROID_SDK_PATH"
+      displayName: Install Android SDK
 
-    echo "---- CHECK @babel/runtime ----"
-    ls -la examples/SampleApp/node_modules/@babel || true
+    # ======================================================
+    # local.properties
+    # ======================================================
+    - script: |
+        echo "sdk.dir=$ANDROID_HOME" > local.properties
+      workingDirectory: '$(Build.SourcesDirectory)/examples/SampleApp/android'
+      displayName: Write local.properties
 
-    echo "---- CHECK @react-native ----"
-    ls -la examples/SampleApp/node_modules/@react-native || true
+    # ======================================================
+    # Node + Yarn
+    # ======================================================
+    - task: NodeTool@0
+      inputs:
+        versionSpec: '22.x'
+      displayName: Install Node
 
-    echo "===== DEBUG END ====="
-  displayName: 'Debug node_modules'
+    - script: npm install -g yarn
+      displayName: Install Yarn
 
-# -------------------------------
-# 6. Build APK
-# -------------------------------
-- script: |
-    cd examples/SampleApp/android
-    ./gradlew clean
-    ./gradlew assembleRelease --no-daemon
-  displayName: 'Build APK'
+    # ======================================================
+    # Install Dependencies (ROOT)
+    # ======================================================
+    - script: |
+        rm -rf node_modules package-lock.json
+        yarn install --ignore-engines --network-timeout 300000
+      workingDirectory: '$(Build.SourcesDirectory)'
+      displayName: Install root dependencies
+
+    # ======================================================
+    # 🔥 BABEL FIX (IMPORTANT)
+    # ======================================================
+    - script: |
+        echo "=== Fixing Babel Runtime Issue ==="
+        yarn add @babel/runtime
+        yarn add --dev @babel/plugin-transform-runtime
+      workingDirectory: '$(Build.SourcesDirectory)'
+      displayName: Install Babel runtime
+
+    # ======================================================
+    # Install SampleApp Dependencies
+    # ======================================================
+    - script: |
+        rm -rf node_modules yarn.lock
+        yarn install --ignore-engines --network-timeout 300000
+      workingDirectory: '$(Build.SourcesDirectory)/examples/SampleApp'
+      displayName: Install SampleApp dependencies
+
+    # ======================================================
+    # Fix mime issue
+    # ======================================================
+    - script: |
+        mkdir -p package/native-package/node_modules
+        rm -f package/native-package/node_modules/mime
+        cp -r node_modules/mime package/native-package/node_modules/mime 2>/dev/null || true
+      workingDirectory: '$(Build.SourcesDirectory)'
+      displayName: Fix mime
+
+    # ======================================================
+    # Copy Native Code
+    # ======================================================
+    - script: |
+        BASE_SRC="$(Build.SourcesDirectory)/package/native-package/android/src/main/java/com/streamchatreactnative"
+        BASE_DEST="$(Build.SourcesDirectory)/examples/SampleApp/node_modules/stream-chat-react-native/android/src/main/java/com/streamchatreactnative"
+
+        mkdir -p "$BASE_DEST/shared"
+        cp -r "$BASE_SRC/shared/." "$BASE_DEST/shared/"
+        cp "$BASE_SRC/StreamShimmerViewManager.kt" "$BASE_DEST/StreamShimmerViewManager.kt"
+      displayName: Copy native sources
+
+    # ======================================================
+    # Gradle Wrapper
+    # ======================================================
+    - script: |
+        rm -f gradlew
+        rm -rf gradle/wrapper
+        mkdir -p gradle/wrapper
+
+        curl -fsSL https://raw.githubusercontent.com/gradle/gradle/v8.6.0/gradlew -o gradlew
+        chmod +x gradlew
+
+        curl -fsSL https://raw.githubusercontent.com/gradle/gradle/v8.6.0/gradle/wrapper/gradle-wrapper.jar -o gradle/wrapper/gradle-wrapper.jar
+
+        printf 'distributionBase=GRADLE_USER_HOME\ndistributionPath=wrapper/dists\ndistributionUrl=https\\://services.gradle.org/distributions/gradle-8.11.1-bin.zip\nzipStoreBase=GRADLE_USER_HOME\nzipStorePath=wrapper/dists\n' > gradle/wrapper/gradle-wrapper.properties
+      workingDirectory: '$(Build.SourcesDirectory)/examples/SampleApp/android'
+      displayName: Setup Gradle
+
+    # ======================================================
+    # Build APK
+    # ======================================================
+    - script: |
+        chmod +x gradlew
+        ./gradlew assembleRelease \
+          --build-cache \
+          --parallel \
+          --daemon \
+          -Dorg.gradle.jvmargs="-Xmx3g"
+      workingDirectory: '$(Build.SourcesDirectory)/examples/SampleApp/android'
+      displayName: Build APK
+
+    # ======================================================
+    # Verify APK
+    # ======================================================
+    - script: |
+        find . -name "*.apk" || echo "No APK found"
+      workingDirectory: '$(Build.SourcesDirectory)/examples/SampleApp/android'
+      displayName: Verify APK
+
+    # ======================================================
+    # Publish APK
+    # ======================================================
+    - task: PublishBuildArtifacts@1
+      inputs:
+        PathtoPublish: '$(Build.SourcesDirectory)/examples/SampleApp/android/app/build/outputs/apk'
+        ArtifactName: 'apk-sampleapp'
+        publishLocation: 'Container'
+      displayName: Publish APK
